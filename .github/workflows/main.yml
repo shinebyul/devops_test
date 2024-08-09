@@ -41,7 +41,4 @@ jobs:
         script: |
           rm -rf /home/ubuntu/devops 
           git clone https://github.com/shinebyul/devops_test.git
-          bash /home/ubuntu/devops/deployment.sh
-
-
-
+          bash /home/ubuntu/devops_test/deployment.sh
