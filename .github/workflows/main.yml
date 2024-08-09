@@ -1,97 +1,49 @@
-  1. GitHub Actions란?
-    GitHub Actions는 GitHub에서 제공하는 CI/CD 도구로, 코드 저장소 내에서 자동화된 워크플로우를 정의할 수 있다.
-    * 워크 플로우 : 저장소에서 발생하는 이벤트(코드 푸시, PR 요청 등)에 따라 자동으로 빌드, 테스트, 배포 등의 작업을 수행
-    
-    2. GitHub Actions의 주요 기능
-  워크플로우(Workflow) : 특정 이벤트에 반응하여 실행되는 자동화된 프로세스.
-  러너(Runner) : 워크플로우(Workflow)를 실행하는 환경을 제공하는 컴퓨터나 가상 머신.
-  잡(Job) : 워크플로우 내에서 병렬 또는 순차적으로 실행되는 작업의 집합.
-  스텝(Step) : 잡 내에서 실행되는 개별 작업 또는 스크립트.
-  액션(Action) : 스텝에서 실행할 수 있는 독립된 명령 또는 스크립트.
-    
-    3. 기본 워크플로우
-  name: devops test
+name: devops test
+on:
+  push:
+    branches: [ main ]
 
-  on:
-    push:
-      branches: [ main ]
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
 
-  jobs:
-    deploy:
-      name: Deploy to EC2
-      runs-on: ubuntu-latest
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-      steps:
-        - name: get code from github
-          uses: appleboy/ssh-action@v1.0.3
-          with:
-            host: ${{ secrets.REMOTE_HOST }}
-            username: ${{ secrets.REMOTE_USER }}
-            key: ${{ secrets.SSH_KEY }}
-            port: ${{ secrets.REMOTE_PORT }}
-            script: |
-              echo test > /tmp/abcd
-    
+      - name: Checkout sources
+        uses: actions/checkout@v4
 
-    4. 시크릿 등록
-    깃헙 -> 본인 레포지토리 -> Settings -> Secrets and variables -> Actions -> New repository secret
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-  REMOTE_HOST : EC2 퍼블릭 IP
-  REMOTE_PORT : 22
-  REMOTE_USER : ubuntu
-  SSH_KEY : pem 키파일의 내용
-    
-    
-    5. 테스트
-    인텔리J에서 코드를 변경하고 푸시했을 때 깃헙 액션에서 워크플로우가 실행
+      - name: Build with Gradle
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build
 
-  name: devops test
+      - name: copy file via ssh
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.REMOTE_PORT }}
+          source: "build/libs/demo-0.0.1-SNAPSHOT.jar"
+          target: "demo-0.0.1-SNAPSHOT.jar"
 
-  on:
-    push:
-      branches: [ main ]
-
-  jobs:
-    deploy:
-      name: Deploy to EC2
-      runs-on: ubuntu-latest
-
-      steps:
-        - name: Set up JDK 17
-          uses: actions/setup-java@v3
-          with:
-            distribution: 'temurin'
-            java-version: '17'
-
-        - name: Checkout sources
-          uses: actions/checkout@v4
-
-        - name: Setup Gradle
-          uses: gradle/actions/setup-gradle@v3
-
-        - name: Build with Gradle
-          run: |
-            chmod +x ./gradlew
-            ./gradlew build
-
-        - name: copy file via ssh
-          uses: appleboy/scp-action@v0.1.7
-          with:
-            host: ${{ secrets.REMOTE_HOST }}
-            username: ${{ secrets.REMOTE_USER }}
-            key: ${{ secrets.SSH_KEY }}
-            port: ${{ secrets.REMOTE_PORT }}
-            source: "build/libs/demo-0.0.1-SNAPSHOT.jar"
-            target: "demo-0.0.1-SNAPSHOT.jar"
-
-        - name: restart spring project
-          uses: appleboy/ssh-action@v1.0.3
-          with:
-            host: ${{ secrets.REMOTE_HOST }}
-            username: ${{ secrets.REMOTE_USER }}
-            key: ${{ secrets.SSH_KEY }}
-            port: ${{ secrets.REMOTE_PORT }}
-            script: |
-              rm -rf /home/ubuntu/devops_test 
-              git clone https://github.com/shinebyul/devops_test.git
-              bash /home/ubuntu/devops_test/deployment.sh
+      - name: restart spring project
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.REMOTE_PORT }}
+          script: |
+            rm -rf /home/ubuntu/devops_test 
+            git clone https://github.com/shinebyul/devops_test.git
+            bash /home/ubuntu/devops_test/deployment.sh
