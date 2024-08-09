@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestController {
     @GetMapping("/test")
     public void test(){
-        System.out.println("8월 9일 DevOps 수업");
+        System.out.println("8월 9일 DevOps 수업 - 수정");
     }
 
 }
